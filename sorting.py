@@ -3,6 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.functional as F
 
+import numpy as np
+import matplotlib.pyplot as plt
+import visdom
+
+import os
 import random
 from abc import ABC, abstractmethod
 
@@ -38,6 +43,12 @@ def get_score(arr, idx):
     score += -1 if idx + 1 < len(arr) and not arr[idx] <= arr[idx+1] else 1
     return score
 
+def get_sortedness(arr):
+    score = 0
+    for i in range(len(arr)-1):
+        score += arr[i+1] - arr[i]
+    return score
+
 
 class DQN(nn.Module):
     """Q table approximater"""
@@ -66,30 +77,32 @@ class DQAgent(SortingAgent):
         self.loss_f = nn.MSELoss()
         self.optimizer = optim.Adam(self.dqn.parameters(), lr=0.001)
 
+        self.total_loss = 0
+
     def update(self):
-        
+
         if self.is_train:
-            # Gamble if training
-            if random.random() > 0.5:
+            # Gamble during training
+            if random.random() > 0.1:
 
                 self.optimizer.zero_grad()
                 
                 q_predict, res = torch.max(self.dqn(torch.Tensor(self.arr)), 0)
                 idx_1 = res // len(self.arr)
                 idx_2 = res % len(self.arr)
-                before_score = get_score(self.arr, idx_1) + get_score(self.arr, idx_2)
                 self.switch_elements(idx_1, idx_2)
-                after_score = get_score(self.arr, idx_1) + get_score(self.arr, idx_2)
                 
                 # Update dqn params with bellman
                 with torch.no_grad():
                     q_prime = torch.max(self.dqn(torch.Tensor(self.arr)))
-                reward = after_score - before_score
+                reward = get_sortedness(arr)
                 q_target = reward + self.discount * q_prime
 
                 loss = self.loss_f(q_predict, q_target)
                 loss.backward()
                 self.optimizer.step()
+
+                self.total_loss += loss.item()
                 
             else:
                 self.switch_elements(
@@ -107,10 +120,39 @@ class DQAgent(SortingAgent):
             
 
 # === MAIN ===
-arr = list(range(20))
+
+vis = visdom.Visdom()
+
+arr = list(range(10))
 random.shuffle(arr)
 agent = DQAgent(arr, is_train=True)
+update_rate = 10000
+n_iter = 150000
+save_path = './data'
 
-for i in range(9999):
-    print(agent.arr)
+arr_log = []
+loss_log = []
+for i in range(n_iter):
+    
     agent.update()
+
+    # Update visdom and save params
+    if (i + 1) % update_rate == 0:
+        loss_log.append(agent.total_loss / (i + 1))
+        vis.line(
+            Y=np.array(loss_log),
+            X=np.array([update_rate*x for x in range(1, len(loss_log)+1)]),
+            opts=dict(
+                title='DQN Average Loss',
+                webgl=True,
+            ),
+            win='Losses',
+        )
+
+        arr_log.insert(0, f"<tr><td>{i + 1}</td><td>{agent.arr}</td></tr>")
+        vis.text(
+            '<table>'+''.join(arr_log)+'</table>',
+            win="Result",
+        )
+
+        torch.save(agent.dqn.state_dict(), os.path.join(save_path, f"dqn_{i+1}"))
