@@ -1,4 +1,4 @@
-# sort-ml
+# sorting-ml
 
 WIP Sorting arrays using Deep Q learning
 
