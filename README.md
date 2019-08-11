@@ -4,5 +4,12 @@ WIP Sorting arrays using Deep Q learning
 
 # Setup and Run
     
-	visdom # Start visdom server
-	python main.py
+	# Install dependencies
+	pip install -r requirements.txt
+	
+	# Train
+	visdom # Run visdom server in separate terminal
+	python train.py
+	
+	# Test
+	python test.py

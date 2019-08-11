@@ -7,7 +7,7 @@ import visdom
 
 from models import DQAgent
 
-# === MAIN ===
+
 if __name__ == "__main__":
     
     vis = visdom.Visdom()
@@ -19,7 +19,6 @@ if __name__ == "__main__":
     n_iter = 10000
     update_rate = 100
     save_rate = 5
-    save_path = './data'
 
     loss_log = []
     for i_epoch in range(n_epoch):
@@ -29,6 +28,10 @@ if __name__ == "__main__":
         random.shuffle(agent.arr)
         arr_log = []
         for i_iter in range(n_iter):
+
+            # Quick exit when sorted
+            if agent.arr == sorted(agent.arr):
+                break
 
             agent.update()
 
@@ -41,7 +44,7 @@ if __name__ == "__main__":
 
         # Update visdom and save params
         if agent.is_train and (i_epoch + 1) % save_rate == 0:
-            loss_log.append(agent.total_loss / n_iter)
+            loss_log.append(agent.total_loss / agent.exploit_steps)
             vis.line(
                 Y=np.array(loss_log),
                 X=np.array([save_rate*x for x in range(1, len(loss_log)+1)]),
@@ -52,4 +55,5 @@ if __name__ == "__main__":
                 win='Losses',
             )
             
-            torch.save(agent.dqn.state_dict(), os.path.join(save_path, f"dqn_{i_epoch + 1}"))
+            torch.save(agent.dqn.state_dict(), f"./data/dqn_{i_epoch + 1}.pt")
+            torch.save(agent.dqn.state_dict(), "./data/dqn_latest.pt")

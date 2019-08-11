@@ -8,6 +8,8 @@ import random
 from abc import ABC, abstractmethod
 from collections import namedtuple
 
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
 class SortingAgent(ABC):
     """Base sorting agent"""
     def __init__(self, arr):
@@ -31,7 +33,7 @@ class RandomAgent(SortingAgent):
             random.randint(0, len(self.arr)-1),
         )
 
-# === Testing reward funcs ===
+# === Reward funcs ===
 
 def get_local_score(arr, idx):
     """Check if considered sorted in local area"""
@@ -53,7 +55,12 @@ def get_inplace_reward(arr):
     for i, val in enumerate(arr):
         score += 1 if i == val else 0
     return score
-    
+
+def get_reward(arr):
+    if arr == sorted(arr):
+        return 100 + get_ascending_reward(arr)
+    else:
+        return get_ascending_reward(arr)
 
 class DQN(nn.Module):
     """Q table approximater"""
@@ -111,12 +118,14 @@ class DQAgent(SortingAgent):
         self.replay_memory = ReplayMemory(200)
 
         self.steps = 0
+        self.exploit_steps = 0
         self.total_loss = 0
 
     def reset(self):
         """Reset agent"""
         self.replay_memory = ReplayMemory(64)
         self.steps = 0
+        self.exploit_steps = 0
         self.total_loss = 0
 
     def load_model(self, path):
@@ -125,12 +134,13 @@ class DQAgent(SortingAgent):
 
     def update(self):
 
+        # Training
         if self.is_train:
             # Exploit or explore
             if random.random() > 1 - self.steps/500:
                 with torch.no_grad():
                     state = torch.Tensor(self.arr)
-                    old_score = get_inplace_reward(self.arr)
+                    old_score = get_reward(self.arr)
                     
                     _, action = torch.max(self.dqn(torch.Tensor(self.arr)), 0)
                     idx_1 = action // len(self.arr)
@@ -138,11 +148,13 @@ class DQAgent(SortingAgent):
                     self.switch_elements(idx_1, idx_2)
 
                     next_state = torch.Tensor(self.arr)
-                    new_score = get_inplace_reward(self.arr)
+                    new_score = get_reward(self.arr)
                     reward = new_score - old_score
+
+                    self.exploit_steps += 1
             else:
                 state = torch.Tensor(self.arr)
-                old_score = get_inplace_reward(self.arr)
+                old_score = get_reward(self.arr)
 
                 action = random.randint(0, len(self.arr)**2 - 1)
                 idx_1 = action // len(self.arr)
@@ -150,7 +162,7 @@ class DQAgent(SortingAgent):
                 self.switch_elements(idx_1, idx_2)
 
                 next_state = torch.Tensor(self.arr)
-                new_score = get_inplace_reward(self.arr)
+                new_score = get_reward(self.arr)
                 reward = new_score - old_score
             
             # Update memory and steps
@@ -174,7 +186,12 @@ class DQAgent(SortingAgent):
                 with torch.no_grad():
                     q_target = self.dqn(next_state_batch)
                     for i in range(self.batch_size):
-                        q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
+                        # Do bellman for non-terminal states
+                        l = next_state_batch[i].tolist()
+                        if l == sorted(l):
+                            q_target[i][action_batch[i]] = reward_batch[i]
+                        else:
+                            q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
                     
                 # Calculate loss and optimize
                 loss = self.loss_f(q_pred, q_target)
@@ -182,7 +199,8 @@ class DQAgent(SortingAgent):
                 self.optimizer.step()
 
                 self.total_loss += loss.item()
-            
+
+        # Testing
         else:
             with torch.no_grad():
                 actions = self.dqn(torch.Tensor(self.arr))
@@ -191,8 +209,3 @@ class DQAgent(SortingAgent):
                     action_idx // len(self.arr),
                     action_idx % len(self.arr),
                 )
-
-                print(actions)
-                print(action_idx // len(self.arr), action_idx % len(self.arr))
-                print(self.arr)
-                print("---")
