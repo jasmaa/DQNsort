@@ -4,7 +4,7 @@ from models import DQAgent
 
 arr = list(range(10))
 agent = DQAgent(arr, is_train=False)
-agent.load_model('./data/dqn_latest')
+agent.load_model('./data/dqn_latest.pt')
 
 random.shuffle(arr)
 

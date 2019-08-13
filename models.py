@@ -42,25 +42,35 @@ def get_local_score(arr, idx):
     score += -1 if idx + 1 < len(arr) and not arr[idx] <= arr[idx+1] else 1
     return score
 
-def get_ascending_reward(arr):
+def get_ascending_score(arr):
     """Reward based on number of ascending items"""
     score = 0
     for i in range(len(arr)-1):
         score += arr[i+1] - arr[i]
     return score
 
-def get_inplace_reward(arr):
+def get_inplace_score(arr):
     """Reward based on position of item"""
     score = 0
     for i, val in enumerate(arr):
         score += 1 if i == val else 0
     return score
 
-def get_reward(arr):
-    if arr == sorted(arr):
-        return 100 + get_ascending_reward(arr)
-    else:
-        return get_ascending_reward(arr)
+def get_reward(prev_state, prev_action_from, state, action_from):
+    """Reward function"""
+
+    prev_arr = prev_state.tolist()
+    arr = state.tolist()
+    modifier = 0
+
+    # Penalize repeating last action
+    if prev_action_from == action_from:
+        modifier = -10
+    # Bonus for completion
+    elif arr == sorted(arr):
+        modifier = 100
+   
+    return get_inplace_score(arr) - get_inplace_score(prev_arr) + modifier
 
 class DQN(nn.Module):
     """Q table approximater"""
@@ -111,6 +121,7 @@ class DQAgent(SortingAgent):
         self.is_train = is_train
         self.dqn = DQN(len(arr))
         self.discount = 0.8
+        self.epsilon = 0.01
         self.loss_f = nn.MSELoss()
         self.optimizer = optim.Adam(self.dqn.parameters(), lr=1e-6)
 
@@ -120,6 +131,7 @@ class DQAgent(SortingAgent):
         self.steps = 0
         self.exploit_steps = 0
         self.total_loss = 0
+        self.last_action = None
 
     def reset(self):
         """Reset agent"""
@@ -136,34 +148,24 @@ class DQAgent(SortingAgent):
 
         # Training
         if self.is_train:
+            
+            state = torch.Tensor(self.arr)
             # Exploit or explore
-            if random.random() > 1 - self.steps/500:
+            if random.random() > 1 - self.epsilon:
                 with torch.no_grad():
-                    state = torch.Tensor(self.arr)
-                    old_score = get_reward(self.arr)
-                    
                     _, action = torch.max(self.dqn(torch.Tensor(self.arr)), 0)
                     idx_1 = action // len(self.arr)
                     idx_2 = action % len(self.arr)
-                    self.switch_elements(idx_1, idx_2)
-
-                    next_state = torch.Tensor(self.arr)
-                    new_score = get_reward(self.arr)
-                    reward = new_score - old_score
-
                     self.exploit_steps += 1
             else:
-                state = torch.Tensor(self.arr)
-                old_score = get_reward(self.arr)
-
                 action = random.randint(0, len(self.arr)**2 - 1)
                 idx_1 = action // len(self.arr)
                 idx_2 = action % len(self.arr)
-                self.switch_elements(idx_1, idx_2)
-
-                next_state = torch.Tensor(self.arr)
-                new_score = get_reward(self.arr)
-                reward = new_score - old_score
+                
+            self.switch_elements(idx_1, idx_2)
+            next_state = torch.Tensor(self.arr)
+            reward = get_reward(state, self.last_action, next_state, action)
+            self.last_action = action
             
             # Update memory and steps
             self.replay_memory.push(state, action, next_state, reward)
@@ -209,3 +211,6 @@ class DQAgent(SortingAgent):
                     action_idx // len(self.arr),
                     action_idx % len(self.arr),
                 )
+
+agent = DQAgent(list(range(10)), is_train=True)
+agent.update()
