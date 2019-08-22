@@ -13,11 +13,11 @@ if __name__ == "__main__":
 
     vis = visdom.Visdom() if use_visdom else None
 
-    arr = list(range(10))
+    arr = list(range(5))
     agent = DQAgent(arr, is_train=True)
 
-    n_epoch = 500
-    n_iter = 10000
+    n_epoch = 100
+    n_iter = 10000000
     update_rate = 100
     save_rate = 5
     loss_log = []
@@ -45,8 +45,7 @@ if __name__ == "__main__":
                         '<table>'+''.join(arr_log)+'</table>',
                         win="Result",
                     )
-
-        avg_loss = agent.total_loss / agent.exploit_steps
+        avg_loss = agent.total_loss / (agent.steps + 1)
         print("Epoch: {0}/{1}\tDQN Loss: {2:.2f}".format(
             i_epoch + 1,
             n_epoch,

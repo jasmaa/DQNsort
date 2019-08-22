@@ -2,11 +2,11 @@ import torch
 import random
 from models import DQAgent
 
-arr = list(range(10))
+arr = list(range(5))
+random.shuffle(arr)
+
 agent = DQAgent(arr, is_train=False)
 agent.load_model('./data/dqn_latest.pt')
-
-random.shuffle(arr)
 
 while range(10000):
     print(agent.arr)

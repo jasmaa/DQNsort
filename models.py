@@ -56,19 +56,16 @@ def get_inplace_score(arr):
         score += 1 if i == val else 0
     return score
 
-def get_reward(prev_state, prev_action_from, state, action_from):
+def get_reward(prev_state, state):
     """Reward function"""
 
     prev_arr = prev_state.tolist()
     arr = state.tolist()
-    modifier = 0
+    modifier = -0.01
 
-    # Penalize repeating last action
-    if prev_action_from == action_from:
-        modifier = -10
     # Bonus for completion
-    elif arr == sorted(arr):
-        modifier = 100
+    if arr == sorted(arr):
+        modifier = 10
    
     return get_inplace_score(arr) - get_inplace_score(prev_arr) + modifier
 
@@ -109,6 +106,10 @@ class ReplayMemory:
         """Sample minibatch from memory"""
         return random.sample(self.memory, batch_size)
 
+    def clear(self):
+        self.memory.clear()
+        self.position = 0
+
     def __len__(self):
         return len(self.memory)
 
@@ -116,28 +117,25 @@ class ReplayMemory:
 class DQAgent(SortingAgent):
     """Deep Q learning agent"""
 
-    def __init__(self, arr, is_train=False, batch_size=32):
+    def __init__(self, arr, discount=0.99, epsilon=0.2, is_train=False, lr=1e-4, batch_size=32):
         super(DQAgent, self).__init__(arr)
         self.is_train = is_train
         self.dqn = DQN(len(arr))
-        self.discount = 0.8
-        self.epsilon = 0.01
+        self.discount = discount
+        self.epsilon = epsilon
         self.loss_f = nn.MSELoss()
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=1e-6)
+        self.optimizer = optim.Adam(self.dqn.parameters(), lr=lr)
 
         self.batch_size = batch_size
-        self.replay_memory = ReplayMemory(200)
+        self.replay_memory = ReplayMemory(1000000)
 
         self.steps = 0
-        self.exploit_steps = 0
         self.total_loss = 0
-        self.last_action = None
 
     def reset(self):
         """Reset agent"""
-        self.replay_memory = ReplayMemory(64)
+        #self.replay_memory.clear()
         self.steps = 0
-        self.exploit_steps = 0
         self.total_loss = 0
 
     def load_model(self, path):
@@ -151,12 +149,12 @@ class DQAgent(SortingAgent):
             
             state = torch.Tensor(self.arr)
             # Exploit or explore
-            if random.random() > 1 - self.epsilon:
+            working_epsilon = 0.1 if self.steps > 1e6 else -self.steps*0.9/1e6 + 1
+            if random.random() > 1 - working_epsilon:
                 with torch.no_grad():
                     _, action = torch.max(self.dqn(torch.Tensor(self.arr)), 0)
                     idx_1 = action // len(self.arr)
                     idx_2 = action % len(self.arr)
-                    self.exploit_steps += 1
             else:
                 action = random.randint(0, len(self.arr)**2 - 1)
                 idx_1 = action // len(self.arr)
@@ -164,8 +162,7 @@ class DQAgent(SortingAgent):
                 
             self.switch_elements(idx_1, idx_2)
             next_state = torch.Tensor(self.arr)
-            reward = get_reward(state, self.last_action, next_state, action)
-            self.last_action = action
+            reward = get_reward(state, next_state)
             
             # Update memory and steps
             self.replay_memory.push(state, action, next_state, reward)
@@ -190,10 +187,10 @@ class DQAgent(SortingAgent):
                     for i in range(self.batch_size):
                         # Do bellman for non-terminal states
                         l = next_state_batch[i].tolist()
-                        if l == sorted(l):
-                            q_target[i][action_batch[i]] = reward_batch[i]
-                        else:
-                            q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
+                        #if l == sorted(l):
+                        q_target[i][action_batch[i]] = reward_batch[i]
+                        #else:
+                        #    q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
                     
                 # Calculate loss and optimize
                 loss = self.loss_f(q_pred, q_target)
@@ -205,12 +202,12 @@ class DQAgent(SortingAgent):
         # Testing
         else:
             with torch.no_grad():
-                actions = self.dqn(torch.Tensor(self.arr))
-                _, action_idx = torch.max(actions, 0)
+                q_values = self.dqn(torch.Tensor(self.arr))
+                q_value, action = torch.max(q_values, 0)
                 self.switch_elements(
-                    action_idx // len(self.arr),
-                    action_idx % len(self.arr),
+                    action // len(self.arr),
+                    action % len(self.arr),
                 )
 
-agent = DQAgent(list(range(10)), is_train=True)
-agent.update()
+                print(action)
+                #print(q_value)
