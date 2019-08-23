@@ -27,6 +27,11 @@ class SortingAgent(ABC):
 
 class RandomAgent(SortingAgent):
     """Sorts with a random policy"""
+
+    def init(self, arr):
+        super(RandomAgent, self).__init__()
+        self.arr = arr
+    
     def update(self):
         self.switch_elements(
             random.randint(0, len(self.arr)-1),
@@ -61,9 +66,9 @@ def get_reward(prev_state, state):
 
     prev_arr = prev_state.tolist()
     arr = state.tolist()
-    modifier = -0.01
 
     # Bonus for completion
+    modifier = 0
     if arr == sorted(arr):
         modifier = 10
    
@@ -88,7 +93,7 @@ class DQN(nn.Module):
 Transition = namedtuple('Transition', ('state', 'action', 'next_state', 'reward'))
 
 class ReplayMemory:
-    """Replay memory from dqn tutorial"""
+    """Replay memory"""
 
     def __init__(self, capacity):
         self.capacity = capacity
@@ -134,7 +139,6 @@ class DQAgent(SortingAgent):
 
     def reset(self):
         """Reset agent"""
-        #self.replay_memory.clear()
         self.steps = 0
         self.total_loss = 0
 
@@ -185,12 +189,9 @@ class DQAgent(SortingAgent):
                 with torch.no_grad():
                     q_target = self.dqn(next_state_batch)
                     for i in range(self.batch_size):
-                        # Do bellman for non-terminal states
+                        # Do bellman
                         l = next_state_batch[i].tolist()
-                        #if l == sorted(l):
-                        q_target[i][action_batch[i]] = reward_batch[i]
-                        #else:
-                        #    q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
+                        q_target[i][action_batch[i]] = reward_batch[i] + self.discount * torch.max(q_target[i])
                     
                 # Calculate loss and optimize
                 loss = self.loss_f(q_pred, q_target)
@@ -208,6 +209,3 @@ class DQAgent(SortingAgent):
                     action // len(self.arr),
                     action % len(self.arr),
                 )
-
-                print(action)
-                #print(q_value)

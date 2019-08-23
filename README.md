@@ -1,6 +1,6 @@
 # sorting-ml
 
-WIP Sorting arrays using Deep Q learning
+Sorting 5 element arrays using Deep Q learning
 
 # Setup and Run
     

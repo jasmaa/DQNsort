@@ -1,6 +1,6 @@
 import torch
 import random
-from models import DQAgent
+from models import DQAgent, RandomAgent
 
 arr = list(range(5))
 random.shuffle(arr)
