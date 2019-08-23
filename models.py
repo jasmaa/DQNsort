@@ -122,12 +122,11 @@ class ReplayMemory:
 class DQAgent(SortingAgent):
     """Deep Q learning agent"""
 
-    def __init__(self, arr, discount=0.99, epsilon=0.2, is_train=False, lr=1e-4, batch_size=32):
+    def __init__(self, arr, discount=0.99, is_train=False, lr=1e-4, batch_size=32):
         super(DQAgent, self).__init__(arr)
         self.is_train = is_train
         self.dqn = DQN(len(arr))
         self.discount = discount
-        self.epsilon = epsilon
         self.loss_f = nn.MSELoss()
         self.optimizer = optim.Adam(self.dqn.parameters(), lr=lr)
 

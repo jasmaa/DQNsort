@@ -7,19 +7,20 @@ import visdom
 
 from models import DQAgent
 
-use_visdom = False
-
-if __name__ == "__main__":
-
+def train(use_visdom, n_epoch, n_iter, update_rate, save_rate, discount, lr, batch_size):
+    """Trains DQNsort"""
+    
     vis = visdom.Visdom() if use_visdom else None
+
+    if not os.path.exists('./data'):
+        os.mkdir('./data')
+        print("Data directory created")
+    else:
+        print("Data directory already exists")
 
     arr = list(range(5))
     agent = DQAgent(arr, is_train=True)
 
-    n_epoch = 100
-    n_iter = 10000000
-    update_rate = 100
-    save_rate = 5
     loss_log = []
 
     print("Start training...")

@@ -1,4 +1,4 @@
-# sorting-ml
+# DQNsort
 
 Sorting 5 element arrays using Deep Q learning
 
@@ -9,7 +9,10 @@ Sorting 5 element arrays using Deep Q learning
 	
 	# Train
 	visdom # Run visdom server in separate terminal
-	python train.py
+	python main.py train
+	
+	# or without visdom
+	python main.py train --use_visdom False
 	
 	# Test
-	python test.py
+	python main.py test
