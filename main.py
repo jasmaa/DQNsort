@@ -27,6 +27,9 @@ if __name__ == "__main__":
                         help='DQN learning rate', default=1e-4)
     parser.add_argument('--batch_size', type=int,
                         help='DQN batch size', default=32)
+    parser.add_argument('--make_gif', type=utils.str2bool,
+                        help='Generate gif on comparison', default=True)
+    
 
     args = parser.parse_args()
 
@@ -49,6 +52,8 @@ if __name__ == "__main__":
         )
     elif args.mode == 'test':
         test.test()
+    elif args.mode == 'compare':
+        test.test_compare(args.make_gif)
     else:
         parser.print_help(sys.stderr)
         sys.exit(1)

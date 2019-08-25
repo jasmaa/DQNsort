@@ -1,5 +1,7 @@
 # DQNsort
 
+![Sample run](sample/sample_run.gif)
+
 Sorting 5 element arrays using Deep Q learning
 
 # Setup and Run
@@ -16,3 +18,4 @@ Sorting 5 element arrays using Deep Q learning
 	
 	# Test
 	python main.py test
+	python main.py compare # Test comparing bubble, random, dqn

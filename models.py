@@ -27,16 +27,35 @@ class SortingAgent(ABC):
 
 class RandomAgent(SortingAgent):
     """Sorts with a random policy"""
-
-    def init(self, arr):
-        super(RandomAgent, self).__init__()
-        self.arr = arr
     
     def update(self):
         self.switch_elements(
             random.randint(0, len(self.arr)-1),
             random.randint(0, len(self.arr)-1),
         )
+
+
+class BubbleSortAgent(SortingAgent):
+    """Sorts using bubble sort"""
+
+    def __init__(self, arr):
+        super(BubbleSortAgent, self).__init__(arr)
+        self.index = 1
+
+    def update(self):
+
+        # Quick exit if sorted
+        if self.arr == sorted(self.arr):
+            return
+        
+        while not self.arr[self.index - 1] > self.arr[self.index]:
+            self.index += 1
+            if self.index == len(self.arr):
+                self.index = 1
+            
+        temp = self.arr[self.index - 1]
+        self.arr[self.index - 1] = self.arr[self.index]
+        self.arr[self.index] = temp
 
 # === Reward funcs ===
 
